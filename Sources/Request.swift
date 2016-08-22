@@ -19,7 +19,7 @@ public struct Request {
     }
     
     /// Processors to be applied to the image. Empty by default.
-    public var processors = [AnyProcessor]()
+    public var processors = [AnyProcessor<Image>]()
 
     /// The policy to use when dealing with memory cache.
     public struct MemoryCacheOptions {
@@ -41,14 +41,14 @@ public struct Request {
 
 public extension Request {
     /// Adds a processor to the request.
-    public func process<P: Processing>(with processor: P) -> Request {
+    public func process<P: Processing>(with processor: P) -> Request where P.Object == Image {
         var request = self
         request.processors.append(AnyProcessor(processor))
         return request
     }
 
     /// Wraps processors into ProcessorComposition.
-    internal var processor: ProcessorComposition? {
+    internal var processor: ProcessorComposition<Image>? {
         return processors.isEmpty ? nil : ProcessorComposition(processors: processors)
     }
 }

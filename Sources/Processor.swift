@@ -6,28 +6,32 @@ import Foundation
 
 /// Performs image processing.
 public protocol Processing: Equatable {
+    associatedtype Object
+
     /// Returns processed image.
-    func process(_ image: Image) -> Image?
+    func process(_ object: Object) -> Object?
 }
 
 /// Composes multiple image processors.
-public struct ProcessorComposition: Processing {
-    private let processors: [AnyProcessor]
+public struct ProcessorComposition<T>: Processing {
+    public typealias Object = T
+
+    private let processors: [AnyProcessor<T>]
     
     /// Composes multiple image processors.
-    public init(processors: [AnyProcessor]) {
+    public init(processors: [AnyProcessor<T>]) {
         self.processors = processors
     }
     
     /// Processes the given image by applying each processor in an order in
     /// which they were added. If one of the processors fails to produce
     /// an image the processing stops and `nil` is returned.
-    public func process(_ input: Image) -> Image? {
-        return processors.reduce(input as Image!) { image, processor in
-            return autoreleasepool { image != nil ? processor.process(image!) : nil }
+    public func process(_ input: T) -> T? {
+        return processors.reduce(input as T!) { obj, processor in
+            return autoreleasepool { obj != nil ? processor.process(obj!) : nil }
         }
     }
-    
+
     /// Returns true if the underlying processors are pairwise-equivalent.
     public static func ==(lhs: ProcessorComposition, rhs: ProcessorComposition) -> Bool {
         return lhs.processors.elementsEqual(rhs.processors)
@@ -35,19 +39,20 @@ public struct ProcessorComposition: Processing {
 }
 
 /// Type-erased image processor.
-public struct AnyProcessor: Processing {
-    private let _process: (Image) -> Image?
+public struct AnyProcessor<T>: Processing {
+    public typealias Object = T
+    private let _process: (T) -> T?
     private let _processor: Any
     private let _equals: (AnyProcessor) -> Bool
 
-    public init<P: Processing>(_ processor: P) {
+    public init<P: Processing>(_ processor: P) where P.Object == T {
         self._process = { processor.process($0) }
         self._processor = processor
         self._equals = { ($0._processor as? P) == processor }
     }
 
-    public func process(_ image: Image) -> Image? {
-        return self._process(image)
+    public func process(_ obj: T) -> T? {
+        return self._process(obj)
     }
 
     public static func ==(lhs: AnyProcessor, rhs: AnyProcessor) -> Bool {
@@ -68,6 +73,8 @@ public struct AnyProcessor: Processing {
     /// resized to either fit or fill the size (see `ContentMode` enum
     /// for more info). Image aspect ratio is always maintained.
     public struct Decompressor: Processing {
+        public typealias Object = UIImage
+
         /// An option for how to resize the image to the target size.
         public enum ContentMode {
             /// Scales the image so that it completely fills the target size.

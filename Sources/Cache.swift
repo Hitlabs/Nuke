@@ -12,16 +12,21 @@ import Foundation
 /// Provides in-memory storage for images.
 ///
 /// The implementation is expected to be thread safe.
-public protocol Caching {
-    /// Returns an image for the request.
-    func image(for request: Request) -> Image?
+public protocol Caching: class {
+    /// Accesses the image associated with the given key.
+    subscript(key: AnyHashable) -> Image? { get set }
+}
 
-    /// Stores the image for the request.
-    func setImage(_ image: Image, for request: Request)
+public extension Caching {
+    /// Accesses the image associated with the given request.
+    subscript(request: Request) -> Image? {
+        get { return self[Request.cacheKey(for: request)] }
+        set { self[Request.cacheKey(for: request)] = newValue }
+    }
 }
 
 /// Auto purging memory cache that uses `NSCache` as its internal storage.
-open class Cache: Caching {
+public class Cache: Caching {
     deinit {
         #if os(iOS) || os(tvOS)
             NotificationCenter.default.removeObserver(self)
@@ -33,12 +38,9 @@ open class Cache: Caching {
     /// The internal memory cache.
     public let cache: NSCache<AnyObject, AnyObject>
 
-    private let equator: RequestEquating
-
     /// Initializes the receiver with a given memory cache.
-    public init(cache: NSCache<AnyObject, AnyObject> = Cache.makeDefaultCache(), equator: RequestEquating = RequestCachingEquator()) {
+    public init(cache: NSCache<AnyObject, AnyObject> = Cache.makeDefaultCache()) {
         self.cache = cache
-        self.equator = equator
         #if os(iOS) || os(tvOS)
             NotificationCenter.default.addObserver(self, selector: #selector(didReceiveMemoryWarning(_:)), name: .UIApplicationDidReceiveMemoryWarning, object: nil)
         #endif
@@ -58,38 +60,44 @@ open class Cache: Caching {
     
     // MARK: Managing Cached Images
 
-    /// Returns an image for the request.
-    open func image(for request: Request) -> Image? {
-        return cache.object(forKey: makeKey(for: request)) as? Image
+    /// Accesses the image associated with the given key.
+    public subscript(key: AnyHashable) -> Image? {
+        get {
+            return cache.object(forKey: Key(key)) as? Image
+        }
+        set {
+            if let image = newValue {
+                cache.setObject(image, forKey: Key(key), cost: cost(image))
+            } else {
+                cache.removeObject(forKey: Key(key))
+            }
+        }
     }
-
-    /// Stores the image for the request.
-    open func setImage(_ image: Image, for request: Request) {
-        cache.setObject(image, forKey: makeKey(for: request), cost: cost(for: image))
-    }
-
-    /// Removes an image for the request.
-    open func removeImage(for request: Request) {
-        cache.removeObject(forKey: makeKey(for: request))
-    }
-
-    private func makeKey(for request: Request) -> RequestKey {
-        return RequestKey(request, equator: equator)
-    }
-
-    // MARK: Subclassing Hooks
     
     /// Returns cost for the given image by approximating its bitmap size in bytes in memory.
-    open func cost(for image: Image) -> Int {
+    public var cost: (Image) -> Int = {
         #if os(macOS)
             return 1
         #else
-            guard let cgImage = image.cgImage else { return 1 }
+            guard let cgImage = $0.cgImage else { return 1 }
             return cgImage.bytesPerRow * cgImage.height
         #endif
     }
     
     dynamic private func didReceiveMemoryWarning(_ notification: Notification) {
         cache.removeAllObjects()
+    }
+    
+    /// Wraps `Hashable` types in NSObject (required by NSCache)
+    private final class Key: NSObject {
+        let val: AnyHashable
+        
+        init(_ val: AnyHashable) { self.val = val }
+        
+        override var hash: Int { return val.hashValue }
+        
+        override func isEqual(_ other: Any?) -> Bool {
+            return val == (other as? Key)?.val
+        }
     }
 }

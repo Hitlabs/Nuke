@@ -7,26 +7,11 @@ import Nuke
 
 class MockCache: Caching {
     var enabled = true
-    var images = [URL: Image]()
+    var images = [AnyHashable: Image]()
     init() {}
 
-    func image(for request: Request) -> Image? {
-        return enabled ? images[request.urlRequest.url!] : nil
-    }
-    
-    func setImage(_ image: Image, for request: Request) {
-        if enabled {
-            images[request.urlRequest.url!] = image
-        }
-    }
-    
-    func removeImage(for request: Request) {
-        if enabled {
-            images[request.urlRequest.url!] = nil
-        }
-    }
-    
-    func clear() {
-        images.removeAll()
+    subscript(key: AnyHashable) -> Image? {
+        get { return enabled ? images[key] : nil }
+        set { if enabled { images[key] = newValue } }
     }
 }

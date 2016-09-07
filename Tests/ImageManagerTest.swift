@@ -30,7 +30,7 @@ class ImageManagerTest: XCTestCase {
 
     func testThatRequestIsCompelted() {
         self.expect { fulfill in
-            self.manager.taskWith(ImageRequest(URL: defaultURL)) {
+            self.manager.taskWith(ImageRequest(URL: defaultURL as URL)) {
                 XCTAssertNotNil($0.image, "")
                 fulfill()
             }.resume()
@@ -39,36 +39,36 @@ class ImageManagerTest: XCTestCase {
     }
 
     func testThatTaskChangesStateWhenCompleted() {
-        let task = self.manager.taskWith(defaultURL)
-        XCTAssertEqual(task.state, ImageTaskState.Suspended)
+        let task = self.manager.taskWith(defaultURL as URL)
+        XCTAssertEqual(task.state, ImageTaskState.suspended)
         self.expect { fulfill in
             task.completion { _ in
-                XCTAssertEqual(task.state, ImageTaskState.Completed)
+                XCTAssertEqual(task.state, ImageTaskState.completed)
                 fulfill()
             }
         }
         task.resume()
-        XCTAssertEqual(task.state, ImageTaskState.Running)
+        XCTAssertEqual(task.state, ImageTaskState.running)
         self.wait()
     }
 
     func testThatTaskChangesStateOnCallersThreadWhenCompleted() {
         let expectation = self.expectation()
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)) {
-            let task = self.manager.taskWith(defaultURL)
-            XCTAssertEqual(task.state, ImageTaskState.Suspended)
+        DispatchQueue.global(qos: .default).async {
+            let task = self.manager.taskWith(defaultURL as URL)
+            XCTAssertEqual(task.state, ImageTaskState.suspended)
             task.completion { _ in
-                XCTAssertEqual(task.state, ImageTaskState.Completed)
+                XCTAssertEqual(task.state, ImageTaskState.completed)
                 expectation.fulfill()
             }
             task.resume()
-            XCTAssertEqual(task.state, ImageTaskState.Running)
+            XCTAssertEqual(task.state, ImageTaskState.running)
         }
         self.wait()
     }
 
     func testThatMultipleCompletionsCanBeAdded() {
-        let task = self.manager.taskWith(defaultURL)
+        let task = self.manager.taskWith(defaultURL as URL)
         self.expect { fulfill in
             task.completion {
                 XCTAssertNotNil($0.image, "")
@@ -86,7 +86,7 @@ class ImageManagerTest: XCTestCase {
     }
 
     func testThatCompletionsCanBeAddedForResumedAndCompletedTask() {
-        let task = self.manager.taskWith(defaultURL)
+        let task = self.manager.taskWith(defaultURL as URL)
         self.expect { fulfill in
             task.completion {
                 XCTAssertNotNil($0.image, "")
@@ -103,7 +103,7 @@ class ImageManagerTest: XCTestCase {
         }
         self.wait()
 
-        XCTAssertEqual(task.state, ImageTaskState.Completed)
+        XCTAssertEqual(task.state, ImageTaskState.completed)
 
         self.expect { fulfill in
             task.completion {
@@ -119,47 +119,47 @@ class ImageManagerTest: XCTestCase {
     func testThatResumedTaskIsCancelled() {
         self.mockSessionManager.enabled = false
 
-        let task = self.manager.taskWith(defaultURL)
+        let task = self.manager.taskWith(defaultURL as URL)
 
         self.expect { fulfill in
             task.completion { response -> Void in
                 switch response {
-                case .Success(_, _): XCTFail()
-                case let .Failure(error):
+                case .success(_, _): XCTFail()
+                case let .failure(error):
                     XCTAssertEqual((error as NSError).domain, ImageManagerErrorDomain, "")
-                    XCTAssertEqual((error as NSError).code, ImageManagerErrorCode.Cancelled.rawValue, "")
+                    XCTAssertEqual((error as NSError).code, ImageManagerErrorCode.cancelled.rawValue, "")
                 }
-                XCTAssertEqual(task.state, ImageTaskState.Cancelled)
+                XCTAssertEqual(task.state, ImageTaskState.cancelled)
                 fulfill()
             }
         }
 
-        XCTAssertEqual(task.state, ImageTaskState.Suspended)
+        XCTAssertEqual(task.state, ImageTaskState.suspended)
         task.resume()
-        XCTAssertEqual(task.state, ImageTaskState.Running)
+        XCTAssertEqual(task.state, ImageTaskState.running)
         task.cancel()
-        XCTAssertEqual(task.state, ImageTaskState.Cancelled)
+        XCTAssertEqual(task.state, ImageTaskState.cancelled)
 
         self.wait()
     }
 
     func testThatSuspendedTaskIsCancelled() {
-        let task = self.manager.taskWith(defaultURL)
+        let task = self.manager.taskWith(defaultURL as URL)
         self.expect { fulfill in
             task.completion { response -> Void in
                 switch response {
-                case .Success(_, _): XCTFail()
-                case let .Failure(error):
+                case .success(_, _): XCTFail()
+                case let .failure(error):
                     XCTAssertEqual((error as NSError).domain, ImageManagerErrorDomain, "")
-                    XCTAssertEqual((error as NSError).code, ImageManagerErrorCode.Cancelled.rawValue, "")
+                    XCTAssertEqual((error as NSError).code, ImageManagerErrorCode.cancelled.rawValue, "")
                 }
-                XCTAssertEqual(task.state, ImageTaskState.Cancelled)
+                XCTAssertEqual(task.state, ImageTaskState.cancelled)
                 fulfill()
             }
         }
-        XCTAssertEqual(task.state, ImageTaskState.Suspended)
+        XCTAssertEqual(task.state, ImageTaskState.suspended)
         task.cancel()
-        XCTAssertEqual(task.state, ImageTaskState.Cancelled)
+        XCTAssertEqual(task.state, ImageTaskState.cancelled)
         self.wait()
     }
 
@@ -167,7 +167,7 @@ class ImageManagerTest: XCTestCase {
         self.mockSessionManager.enabled = false
 
         self.expectNotification(MockURLSessionDataTaskDidResumeNotification)
-        let task = self.manager.taskWith(defaultURL).resume()
+        let task = self.manager.taskWith(defaultURL as URL).resume()
         self.wait()
 
         self.expectNotification(MockURLSessionDataTaskDidCancelNotification)
@@ -178,8 +178,8 @@ class ImageManagerTest: XCTestCase {
     // MARK: Data Tasks Reusing
 
     func testThatDataTasksAreReused() {
-        let request1 = ImageRequest(URL: defaultURL)
-        let request2 = ImageRequest(URL: defaultURL)
+        let request1 = ImageRequest(URL: defaultURL as URL)
+        let request2 = ImageRequest(URL: defaultURL as URL)
 
         self.expect { fulfill in
             self.manager.taskWith(request1) { _ in
@@ -199,8 +199,8 @@ class ImageManagerTest: XCTestCase {
     }
     
     func testThatDataTasksWithDifferentCachePolicyAreNotReused() {
-        let request1 = ImageRequest(URLRequest: NSURLRequest(URL: defaultURL, cachePolicy: .UseProtocolCachePolicy, timeoutInterval: 0))
-        let request2 = ImageRequest(URLRequest: NSURLRequest(URL: defaultURL, cachePolicy: .ReturnCacheDataDontLoad, timeoutInterval: 0))
+        let request1 = ImageRequest(URLRequest: URLRequest(url: defaultURL as URL, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 0))
+        let request2 = ImageRequest(URLRequest: URLRequest(url: defaultURL as URL, cachePolicy: .returnCacheDataDontLoad, timeoutInterval: 0))
         
         self.expect { fulfill in
             self.manager.taskWith(request1) { _ in
@@ -223,13 +223,13 @@ class ImageManagerTest: XCTestCase {
         self.mockSessionManager.enabled = false
         
         self.expectNotification(MockURLSessionDataTaskDidResumeNotification)
-        let task1 = self.manager.taskWith(defaultURL).resume()
-        let task2 = self.manager.taskWith(defaultURL).resume()
+        let task1 = self.manager.taskWith(defaultURL as URL).resume()
+        let task2 = self.manager.taskWith(defaultURL as URL).resume()
         self.wait()
         
         self.expect { fulfill in
             task1.completion {
-                XCTAssertEqual(task1.state, ImageTaskState.Cancelled)
+                XCTAssertEqual(task1.state, ImageTaskState.cancelled)
                 XCTAssertNil($0.image)
                 fulfill()
             }
@@ -237,7 +237,7 @@ class ImageManagerTest: XCTestCase {
         
         self.expect { fulfill in
             task2.completion {
-                XCTAssertEqual(task2.state, ImageTaskState.Completed)
+                XCTAssertEqual(task2.state, ImageTaskState.completed)
                 XCTAssertNotNil($0.image)
                 fulfill()
             }
@@ -253,7 +253,7 @@ class ImageManagerTest: XCTestCase {
     // MARK: Progress
 
     func testThatProgressClosureIsCalled() {
-        let task = self.manager.taskWith(defaultURL, completion: nil)
+        let task = self.manager.taskWith(defaultURL as URL, completion: nil)
         XCTAssertEqual(task.progress.total, 0)
         XCTAssertEqual(task.progress.completed, 0)
         XCTAssertEqual(task.progress.fractionCompleted, 0.0)
@@ -283,7 +283,7 @@ class ImageManagerTest: XCTestCase {
     func testThatPreheatingRequestsAreStopped() {
         self.mockSessionManager.enabled = false
 
-        let request = ImageRequest(URL: defaultURL)
+        let request = ImageRequest(URL: defaultURL as URL)
         self.expectNotification(MockURLSessionDataTaskDidResumeNotification)
         self.manager.startPreheatingImages([request])
         self.wait()
@@ -296,7 +296,7 @@ class ImageManagerTest: XCTestCase {
     func testThatSimilarPreheatingRequestsAreStoppedWithSingleStopCall() {
         self.mockSessionManager.enabled = false
 
-        let request = ImageRequest(URL: defaultURL)
+        let request = ImageRequest(URL: defaultURL as URL)
         self.expectNotification(MockURLSessionDataTaskDidResumeNotification)
         self.manager.startPreheatingImages([request, request])
         self.manager.startPreheatingImages([request])
@@ -313,7 +313,7 @@ class ImageManagerTest: XCTestCase {
     func testThatAllPreheatingRequestsAreStopped() {
         self.mockSessionManager.enabled = false
 
-        let request = ImageRequest(URL: defaultURL)
+        let request = ImageRequest(URL: defaultURL as URL)
         self.expectNotification(MockURLSessionDataTaskDidResumeNotification)
         self.manager.startPreheatingImages([request])
         self.wait(2)
@@ -329,8 +329,8 @@ class ImageManagerTest: XCTestCase {
         self.mockSessionManager.enabled = false
 
         // More than 1 image task!
-        self.manager.taskWith(defaultURL, completion: nil).resume()
-        self.manager.taskWith(NSURL(string: "http://test2.com")!, completion: nil).resume()
+        self.manager.taskWith(defaultURL as URL, completion: nil).resume()
+        self.manager.taskWith(URL(string: "http://test2.com")!, completion: nil).resume()
         var callbackCount = 0
         self.expectNotification(MockURLSessionDataTaskDidCancelNotification) { _ in
             callbackCount += 1
@@ -345,8 +345,8 @@ class ImageManagerTest: XCTestCase {
     func testThatGetImageTasksMethodReturnsCorrectTasks() {
         self.mockSessionManager.enabled = false
         
-        let task1 = self.manager.taskWith(NSURL(string: "http://test1.com")!, completion: nil)
-        let task2 = self.manager.taskWith(NSURL(string: "http://test2.com")!, completion: nil)
+        let task1 = self.manager.taskWith(URL(string: "http://test1.com")!, completion: nil)
+        let task2 = self.manager.taskWith(URL(string: "http://test2.com")!, completion: nil)
         
         task1.resume()
         
@@ -356,9 +356,9 @@ class ImageManagerTest: XCTestCase {
             let (executingTasks, _) = self.manager.tasks
             XCTAssertEqual(executingTasks.count, 1)
             XCTAssertTrue(executingTasks.contains(task1))
-            XCTAssertEqual(task1.state, ImageTaskState.Running)
+            XCTAssertEqual(task1.state, ImageTaskState.running)
             XCTAssertFalse(executingTasks.contains(task2))
-            XCTAssertEqual(task2.state, ImageTaskState.Suspended)
+            XCTAssertEqual(task2.state, ImageTaskState.suspended)
             fulfill()
         }
         self.wait()

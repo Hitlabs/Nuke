@@ -12,21 +12,21 @@ import Nuke
 class MockImageDataLoader: ImageDataLoader {
     var enabled = true {
         didSet {
-            self.queue.suspended = !enabled
+            self.queue.isSuspended = !enabled
         }
     }
     var createdTaskCount = 0
-    private let queue = NSOperationQueue()
+    fileprivate let queue = OperationQueue()
 
-    override func taskWith(request: ImageRequest, progress: ImageDataLoadingProgress, completion: ImageDataLoadingCompletion) -> NSURLSessionTask {
-        self.queue.addOperationWithBlock {
-            progress(completed: 50, total: 100)
-            progress(completed: 100, total: 100)
-            let bundle = NSBundle(forClass: MockImageDataLoader.self)
-            let URL = bundle.URLForResource("Image", withExtension: "jpg")
-            let data = NSData(contentsOfURL: URL!)
-            dispatch_async(dispatch_get_main_queue()) {
-                completion(data: data, response: nil, error: nil)
+    override func taskWith(_ request: ImageRequest, progress: ImageDataLoadingProgress, completion: ImageDataLoadingCompletion) -> URLSessionTask {
+        self.queue.addOperation {
+            progress(50, 100)
+            progress(100, 100)
+            let bundle = Bundle(for: MockImageDataLoader.self)
+            let URL = bundle.url(forResource: "Image", withExtension: "jpg")
+            let data = try? Data(contentsOf: URL!)
+            DispatchQueue.main.async {
+                completion(data, nil, nil)
             }
         }
         self.createdTaskCount += 1
